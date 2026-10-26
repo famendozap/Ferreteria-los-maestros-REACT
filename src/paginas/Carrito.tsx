@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCarritoContexto } from '../hooks/CarritoContexto';
 import ItemCarrito from '../componentes/moleculas/ItemCarrito';
 import Boton from '../componentes/atomos/Boton';
@@ -6,6 +6,7 @@ import { formatearCLP } from '../utils/validaciones';
 
 export default function Carrito() {
   const { detalles, actualizarCantidad, quitar, vaciar, totalCLP } = useCarritoContexto();
+  const navigate = useNavigate();
 
   if (detalles.length === 0) {
     return (
@@ -59,7 +60,9 @@ export default function Carrito() {
       </div>
 
       <div className="text-end mt-3">
-        <Boton tamano="lg">Solicitar pedido</Boton>
+        <Boton tamano="lg" onClick={() => navigate('/checkout')}>
+          Solicitar pedido
+        </Boton>
       </div>
     </div>
   );

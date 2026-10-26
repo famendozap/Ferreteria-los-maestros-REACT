@@ -13,6 +13,7 @@ import Registro from './paginas/Registro';
 import Catalogo from './paginas/Catalogo';
 import ProductoDetalle from './paginas/ProductoDetalle';
 import Carrito from './paginas/Carrito';
+import Checkout from './paginas/Checkout';
 
 import AdminDashboard from './paginas/admin/AdminDashboard';
 import AdminProductos from './paginas/admin/AdminProductos';
@@ -38,6 +39,7 @@ function App() {
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/catalogo/:codigo" element={<ProductoDetalle />} />
           <Route path="/carrito" element={<Carrito />} />
+          <Route path="/checkout" element={<Checkout />} />
 
           <Route
             path="/admin"
