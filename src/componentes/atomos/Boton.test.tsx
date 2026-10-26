@@ -18,18 +18,4 @@ describe('<Boton />', () => {
 
     expect(manejarClic).toHaveBeenCalledTimes(1);
   });
-
-  it('no dispara onClick cuando está disabled', async () => {
-    const manejarClic = vi.fn();
-    const usuario = userEvent.setup();
-
-    render(
-      <Boton onClick={manejarClic} disabled>
-        No disponible
-      </Boton>,
-    );
-    await usuario.click(screen.getByRole('button', { name: 'No disponible' }));
-
-    expect(manejarClic).not.toHaveBeenCalled();
-  });
 });

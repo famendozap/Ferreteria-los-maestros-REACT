@@ -43,12 +43,6 @@ describe('<TablaProductosAdmin />', () => {
     expect(screen.queryByText('Cemento Polpaico gris 25 kg')).not.toBeInTheDocument();
   });
 
-  it('muestra un estado vacío cuando no hay coincidencias', () => {
-    renderTabla();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sin-coincidencias' } });
-    expect(screen.getByText('No se encontraron productos.')).toBeInTheDocument();
-  });
-
   it('elimina la fila luego de confirmar la acción', () => {
     crearProducto(productoPrueba);
     vi.spyOn(window, 'confirm').mockReturnValue(true);

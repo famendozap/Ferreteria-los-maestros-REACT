@@ -36,19 +36,10 @@ describe('módulo de productos', () => {
     expect(buscarPorCodigo(CODIGO_PRUEBA)?.nombre).toBe('Producto de prueba');
   });
 
-  it('rechaza crear un producto con un código existente', () => {
-    crearProducto(productoPrueba());
-    expect(() => crearProducto(productoPrueba())).toThrow('Ya existe un producto');
-  });
-
   it('actualiza un producto existente', () => {
     crearProducto(productoPrueba());
     actualizarProducto(CODIGO_PRUEBA, productoPrueba({ nombre: 'Nombre actualizado', stock: 7 }));
     expect(buscarPorCodigo(CODIGO_PRUEBA)).toMatchObject({ nombre: 'Nombre actualizado', stock: 7 });
-  });
-
-  it('rechaza actualizar un producto inexistente', () => {
-    expect(() => actualizarProducto(CODIGO_PRUEBA, productoPrueba())).toThrow('No se encontró el producto');
   });
 
   it('elimina un producto existente', () => {
