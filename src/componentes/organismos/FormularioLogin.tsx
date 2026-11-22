@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import CampoFormulario from '../moleculas/CampoFormulario';
 import Boton from '../atomos/Boton';
 import { validarLogin } from '../../utils/validaciones';
-import { buscarUsuarioPorMail } from '../../datos/usuarios';
 import { useSesion } from '../../hooks/SesionContexto';
+import { loginApi, ErrorApi } from '../../servicios/usuariosApi';
 
 export default function FormularioLogin() {
   const [correo, setCorreo] = useState('');
@@ -13,28 +13,35 @@ export default function FormularioLogin() {
   const [errorGeneral, setErrorGeneral] = useState('');
   const navigate = useNavigate();
   const { iniciarSesion } = useSesion();
+  const [enviando, setEnviando] = useState(false);
 
-  // Valida los campos, comprueba la cuenta local y solo inicia sesión si está activa.
-  function manejarEnvio(e: FormEvent) {
+  
+  async function manejarEnvio(e: FormEvent) {
     e.preventDefault();
     setErrorGeneral('');
     const resultado = validarLogin(correo, clave);
     setErrores(resultado.errores);
     if (!resultado.valido) return;
 
-    const usuario = buscarUsuarioPorMail(correo);
-    if (!usuario || usuario.clave !== clave) {
-      setErrorGeneral('Correo o contraseña incorrectos.');
-      return;
+    setEnviando(true);
+    try {
+      const { usuario, token } = await loginApi(correo, clave);
+      iniciarSesion(usuario, token);
+      navigate('/catalogo');
+    } catch (error) {
+      if (error instanceof ErrorApi && error.status === 401) {
+        setErrorGeneral('Correo o contraseña incorrectos.');
+      } else if (error instanceof ErrorApi && error.status === 403) {
+        setErrorGeneral('Tu cuenta se encuentra inactiva. Contacta al administrador.');
+      } else if (error instanceof ErrorApi) {
+        setErrorGeneral(error.message);
+      } else {
+        setErrorGeneral('Ocurrió un error inesperado.');
     }
-    if (!usuario.activo) {
-      setErrorGeneral('Tu cuenta se encuentra inactiva. Contacta al administrador.');
-      return;
-    }
-
-    iniciarSesion(usuario);
-    navigate('/catalogo');
+  } finally {
+    setEnviando(false);
   }
+}
 
   return (
     <form noValidate onSubmit={manejarEnvio} className="mx-auto" style={{ maxWidth: '420px' }}>
@@ -57,9 +64,7 @@ export default function FormularioLogin() {
         error={errores.clave}
       />
 
-      <Boton type="submit" className="w-100 mt-2">
-        Ingresar
-      </Boton>
+      <Boton type="submit" className="w-100 mt-2" disabled={enviando}>{enviando ? 'Ingresando...' : 'Ingresar'}</Boton>
 
       <p className="text-center small text-muted mt-3 mb-0">
         Cuenta de prueba: admin@ferreterialosmaestros.cl / admin123

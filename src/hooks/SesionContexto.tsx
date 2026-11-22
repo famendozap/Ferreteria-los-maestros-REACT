@@ -1,41 +1,53 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { Usuario } from '../datos/usuarios';
+import type { UsuarioSesion } from '../servicios/usuariosApi';
 
 const CLAVE_LOCALSTORAGE = 'lm_sesion';
 
+interface DatosSesion {
+  usuario: UsuarioSesion;
+  token: string;
+}
+
 interface SesionAPI {
-  usuario: Usuario | null;
-  iniciarSesion: (usuario: Usuario) => void;
+  usuario: UsuarioSesion | null;
+  token: string | null;
+  iniciarSesion: (usuario: UsuarioSesion, token: string) => void;
   cerrarSesion: () => void;
 }
 
 const SesionContext = createContext<SesionAPI | null>(null);
 
-function leerSesionInicial(): Usuario | null {
+function leerSesionInicial(): DatosSesion | null {
   try {
     const guardado = localStorage.getItem(CLAVE_LOCALSTORAGE);
-    return guardado ? (JSON.parse(guardado) as Usuario) : null;
+    if (!guardado) return null;
+    const datos = JSON.parse(guardado);
+    // Ignora sesiones guardadas con el formato antiguo (sin token).
+    return datos?.usuario && datos?.token ? (datos as DatosSesion) : null;
   } catch {
     return null;
   }
 }
 
-// Comparte la sesión entre componentes y la conserva en localStorage al navegar o recargar.
-export function SesionProvider({ children }: { children: ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(leerSesionInicial);
 
-  const iniciarSesion = (u: Usuario) => {
-    setUsuario(u);
-    localStorage.setItem(CLAVE_LOCALSTORAGE, JSON.stringify(u));
+export function SesionProvider({ children }: { children: ReactNode }) {
+  const [sesion, setSesion] = useState<DatosSesion | null>(leerSesionInicial);
+
+  const iniciarSesion = (usuario: UsuarioSesion, token: string) => {
+    const nueva = { usuario, token };
+    setSesion(nueva);
+    localStorage.setItem(CLAVE_LOCALSTORAGE, JSON.stringify(nueva));
   };
 
   const cerrarSesion = () => {
-    setUsuario(null);
+    setSesion(null);
     localStorage.removeItem(CLAVE_LOCALSTORAGE);
   };
 
   return (
-    <SesionContext.Provider value={{ usuario, iniciarSesion, cerrarSesion }}>
+    <SesionContext.Provider
+      value={{ usuario: sesion?.usuario ?? null, token: sesion?.token ?? null, iniciarSesion, cerrarSesion }}
+    >
       {children}
     </SesionContext.Provider>
   );
