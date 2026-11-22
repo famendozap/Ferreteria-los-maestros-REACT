@@ -71,3 +71,60 @@ export function loginApi(mail: string, clave: string) {
 export function registroApi(datos: DatosRegistro) {
   return pedir<RespuestaAuth>('/registro', 'POST', datos);
 }
+export function listarUsuariosApi(token: string) {
+  return pedir<UsuarioSesion[]>('', 'GET', undefined, token);
+}
+
+export function alternarActivoApi(id: number, token: string) {
+  return pedir<UsuarioSesion>(`/${id}/activo`, 'PATCH', undefined, token);
+}
+
+export function eliminarUsuarioApi(id: number, token: string) {
+  return pedir<void>(`/${id}`, 'DELETE', undefined, token);
+}
+
+export interface DatosUsuarioNuevo {
+  run: string;
+  nombre: string;
+  apellidos: string;
+  mail: string;
+  clave: string;
+  tipoUsuario: TipoUsuario;
+  region: string;
+  comuna: string;
+  direccion: string;
+  activo: boolean;
+}
+
+export interface DatosUsuarioEdicion {
+  nombre: string;
+  apellidos: string;
+  mail: string;
+  clave?: string;
+  tipoUsuario: TipoUsuario;
+  region: string;
+  comuna: string;
+  direccion: string;
+  activo: boolean;
+}
+
+export function obtenerUsuarioApi(id: number, token: string) {
+  return pedir<UsuarioSesion>(`/${id}`, 'GET', undefined, token);
+}
+
+export function crearUsuarioApi(datos: DatosUsuarioNuevo, token: string) {
+  return pedir<UsuarioSesion>('', 'POST', datos, token);
+}
+
+export function actualizarUsuarioApi(id: number, datos: DatosUsuarioEdicion, token: string) {
+  return pedir<UsuarioSesion>(`/${id}`, 'PUT', datos, token);
+}
+
+export function mensajeError(e: unknown, porDefecto: string): string {
+  if (e instanceof ErrorApi) {
+    if (e.status === 401) return 'Tu sesión expiró. Usa "Salir" e inicia sesión nuevamente.';
+    if (e.status === 403) return 'No tienes permisos para realizar esta acción.';
+    return e.message;
+  }
+  return porDefecto;
+}

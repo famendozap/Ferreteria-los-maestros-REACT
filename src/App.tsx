@@ -74,7 +74,7 @@ function App() {
             }
           />
           <Route
-            path="/admin/usuarios/:run"
+            path="/admin/usuarios/:id"
             element={
               <RutaProtegida>
                 <AdminUsuarioForm />
