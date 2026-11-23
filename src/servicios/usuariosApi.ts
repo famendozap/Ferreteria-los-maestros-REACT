@@ -1,6 +1,6 @@
 import type { TipoUsuario } from '../datos/usuarios';
 
-export const API_USUARIOS = 'http://localhost:8081/api/usuarios';
+export const API_USUARIOS = `${import.meta.env.VITE_API_URL ?? 'http://localhost:8080'}/api/usuarios`;
 
 export interface UsuarioSesion {
   id: number;
