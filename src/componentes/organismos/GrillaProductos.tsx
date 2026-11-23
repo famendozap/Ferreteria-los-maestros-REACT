@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { PRODUCTOS, obtenerCategorias } from '../../datos/productos';
+import { useEffect, useMemo, useState } from 'react';
+import type { Producto } from '../../datos/productos';
 import CardProducto from '../moleculas/CardProducto';
 import { useCarritoContexto } from '../../hooks/CarritoContexto';
+import { listarProductosApi } from '../../servicios/ferreteriaApi';
 
 type Orden = 'nombre-asc' | 'precio-asc' | 'precio-desc';
 
@@ -9,13 +10,20 @@ export default function GrillaProductos() {
   const [busqueda, setBusqueda] = useState('');
   const [categoria, setCategoria] = useState('');
   const [orden, setOrden] = useState<Orden>('nombre-asc');
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
   const { agregar } = useCarritoContexto();
 
-  const categorias = useMemo(() => obtenerCategorias(), []);
+  useEffect(() => {
+    listarProductosApi().then(setProductos).catch((e: Error) => setError(e.message)).finally(() => setCargando(false));
+  }, []);
+
+  const categorias = useMemo(() => Array.from(new Set(productos.map((p) => p.categoria))).sort(), [productos]);
 
   // Combina búsqueda, categoría y orden sin modificar el arreglo original del catálogo.
   const productosFiltrados = useMemo(() => {
-    let resultado = PRODUCTOS.filter((p) => {
+    let resultado = productos.filter((p) => {
       const coincideTexto =
         p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         p.codigo.toLowerCase().includes(busqueda.toLowerCase());
@@ -30,7 +38,10 @@ export default function GrillaProductos() {
     });
 
     return resultado;
-  }, [busqueda, categoria, orden]);
+  }, [busqueda, categoria, orden, productos]);
+
+  if (cargando) return <p className="text-muted">Cargando productos desde Spring Boot...</p>;
+  if (error) return <div className="alert alert-danger">{error}</div>;
 
   return (
     <div>

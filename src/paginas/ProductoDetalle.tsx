@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { buscarPorCodigo } from '../datos/productos';
+import type { Producto } from '../datos/productos';
+import { obtenerProductoApi } from '../servicios/ferreteriaApi';
 import { formatearCLP } from '../utils/validaciones';
 import StockPill from '../componentes/atomos/StockPill';
 import Boton from '../componentes/atomos/Boton';
@@ -9,11 +10,18 @@ import ProductoImagen from '../componentes/moleculas/ProductoImagen';
 
 export default function ProductoDetalle() {
   const { codigo } = useParams<{ codigo: string }>();
-  const producto = codigo ? buscarPorCodigo(codigo) : undefined;
+  const [producto, setProducto] = useState<Producto | undefined>();
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (codigo) obtenerProductoApi(codigo).then(setProducto).catch((e: Error) => setError(e.message));
+  }, [codigo]);
   const { agregar } = useCarritoContexto();
   const [cantidad, setCantidad] = useState(1);
   const [agregado, setAgregado] = useState(false);
 
+  if (error) {
+    return <div className="container py-5"><div className="alert alert-danger">{error}</div></div>;
+  }
   if (!producto) {
     return (
       <div className="container py-5 text-center">
