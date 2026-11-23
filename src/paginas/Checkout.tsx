@@ -6,6 +6,7 @@ import SelectorRegionComuna from '../componentes/moleculas/SelectorRegionComuna'
 import { useCarritoContexto } from '../hooks/CarritoContexto';
 import { useSesion } from '../hooks/SesionContexto';
 import { esEmailValido, formatearCLP } from '../utils/validaciones';
+import { actualizarItemCarritoApi, crearCarritoApi, crearPedidoApi, type PedidoCreado } from '../servicios/ferreteriaApi';
 
 type MetodoPago = 'transferencia' | 'efectivo' | 'tarjeta';
 type TipoEntrega = 'despacho' | 'retiro';
@@ -37,6 +38,8 @@ export default function Checkout() {
   });
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [confirmada, setConfirmada] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [pedido, setPedido] = useState<PedidoCreado | null>(null);
 
   function actualizar<K extends keyof typeof datos>(campo: K, valor: (typeof datos)[K]) {
     setDatos((actuales) => ({ ...actuales, [campo]: valor }));
@@ -80,7 +83,7 @@ export default function Checkout() {
     });
   }
 
-  function manejarEnvio(evento: FormEvent<HTMLFormElement>) {
+  async function manejarEnvio(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     const nuevosErrores: Record<string, string> = {};
 
@@ -113,8 +116,21 @@ export default function Checkout() {
     setErrores(nuevosErrores);
     if (Object.keys(nuevosErrores).length > 0) return;
 
-    setTarjeta({ titular: '', numero: '', vencimiento: '', cvv: '' });
-    setConfirmada(true);
+    setEnviando(true);
+    try {
+      const carrito = await crearCarritoApi();
+      for (const detalle of detalles) {
+        await actualizarItemCarritoApi(carrito.id, detalle.producto.codigo, detalle.cantidad);
+      }
+      const pedidoCreado = await crearPedidoApi(carrito.id, datos.nombre, datos.correo);
+      setPedido(pedidoCreado);
+      setTarjeta({ titular: '', numero: '', vencimiento: '', cvv: '' });
+      setConfirmada(true);
+    } catch (e) {
+      setErrores({ general: e instanceof Error ? e.message : 'No fue posible registrar el pedido.' });
+    } finally {
+      setEnviando(false);
+    }
   }
 
   if (detalles.length === 0) {
@@ -152,11 +168,16 @@ export default function Checkout() {
       'Solicitud de pedido - Ferretería Los Maestros',
     )}&body=${encodeURIComponent(cuerpoCorreo)}`;
 
+    void entrega;
+    void cuerpoCorreo;
+    void enlaceCorreo;
+
     return (
       <div className="container py-5">
         <div className="mx-auto" style={{ maxWidth: '680px' }}>
           <div className="alert alert-success" role="status">
-            <h1 className="h4">Solicitud preparada</h1>
+            <h1 className="h4">Pedido registrado</h1>
+            <p className="mb-0"><strong>Número de pedido:</strong> {pedido?.id}</p>
             <p className="mb-0">
               {datos.metodoPago === 'tarjeta'
                 ? 'Tarjeta de prueba aprobada. No se realizó ningún cobro y el pedido no se envió a la tienda.'
@@ -190,9 +211,7 @@ export default function Checkout() {
               <span>{formatearCLP(totalCLP)}</span>
             </li>
           </ul>
-          <a className="btn btn-lm-primary me-2 mb-2" href={enlaceCorreo}>
-            Preparar correo para enviar el pedido
-          </a>
+          <p className="text-success">El pedido fue guardado en el sistema.</p>
           <Link to="/carrito">
             <Boton variante="outline">Volver al carrito</Boton>
           </Link>
@@ -203,6 +222,7 @@ export default function Checkout() {
 
   return (
     <div className="container py-5">
+      {errores.general && <div className="alert alert-danger" role="alert">{errores.general}</div>}
       <div className="section-header mb-4">
         <h1 className="h2">Datos del pedido</h1>
         <p className="text-muted mb-0">Completa tus datos, la entrega y el medio de pago.</p>
@@ -379,7 +399,7 @@ export default function Checkout() {
             )}
 
             <Boton type="submit" tamano="lg" className="w-100">
-              {datos.metodoPago === 'tarjeta' ? 'Confirmar pago de prueba y pedido' : 'Confirmar solicitud'}
+              {enviando ? 'Registrando pedido...' : datos.metodoPago === 'tarjeta' ? 'Confirmar pago de prueba y pedido' : 'Confirmar solicitud'}
             </Boton>
           </form>
         </section>

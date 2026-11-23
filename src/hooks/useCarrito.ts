@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { buscarPorCodigo } from '../datos/productos';
+import { buscarPorCodigo, type Producto } from '../datos/productos';
+import { listarProductosApi } from '../servicios/ferreteriaApi';
 
 const CLAVE_LOCALSTORAGE = 'lm_carrito';
 
@@ -20,6 +21,11 @@ function leerCarritoInicial(): ItemCarrito[] {
 // Mantiene el carrito en estado, lo sincroniza con localStorage y calcula sus totales.
 export function useCarrito() {
   const [items, setItems] = useState<ItemCarrito[]>(leerCarritoInicial);
+  const [productosApi, setProductosApi] = useState<Producto[]>([]);
+
+  useEffect(() => {
+    listarProductosApi().then(setProductosApi).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(CLAVE_LOCALSTORAGE, JSON.stringify(items));
@@ -49,10 +55,10 @@ export function useCarrito() {
 
   const detalles = items
     .map((item) => {
-      const producto = buscarPorCodigo(item.codigo);
+      const producto = productosApi.find((p) => p.codigo === item.codigo) ?? buscarPorCodigo(item.codigo);
       return producto ? { producto, cantidad: item.cantidad } : null;
     })
-    .filter((d): d is { producto: NonNullable<ReturnType<typeof buscarPorCodigo>>; cantidad: number } => d !== null);
+    .filter((d): d is { producto: Producto; cantidad: number } => d !== null);
 
   const cantidadTotal = items.reduce((acc, i) => acc + i.cantidad, 0);
   const totalCLP = detalles.reduce((acc, d) => acc + d.producto.pVenta * d.cantidad, 0);
