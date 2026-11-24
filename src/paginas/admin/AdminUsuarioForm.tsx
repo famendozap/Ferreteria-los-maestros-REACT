@@ -1,15 +1,16 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import {
-  actualizarUsuario,
-  buscarUsuarioPorRun,
-  crearUsuario,
-  type TipoUsuario,
-  type Usuario,
-} from '../../datos/usuarios';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import type { TipoUsuario, Usuario } from '../../datos/usuarios';
 import CampoFormulario from '../../componentes/moleculas/CampoFormulario';
 import SelectorRegionComuna from '../../componentes/moleculas/SelectorRegionComuna';
 import Boton from '../../componentes/atomos/Boton';
+import { useSesion } from '../../hooks/SesionContexto';
+import {
+  actualizarUsuarioApi,
+  crearUsuarioApi,
+  mensajeError,
+  obtenerUsuarioApi,
+} from '../../servicios/usuariosApi';
 import { validarRUN, esEmailValido, formatearRUN } from '../../utils/validaciones';
 
 const USUARIO_VACIO: Usuario = {
@@ -26,41 +27,135 @@ const USUARIO_VACIO: Usuario = {
 };
 
 export default function AdminUsuarioForm() {
-  const { run } = useParams<{ run: string }>();
-  const esNuevo = !run || run === 'nuevo';
+  const { id } = useParams<{ id: string }>();
+  const esNuevo = !id || id === 'nuevo';
+  const idNumerico = esNuevo ? null : Number(id);
   const navigate = useNavigate();
+  const { token } = useSesion();
 
-  const [usuario, setUsuario] = useState<Usuario>(() =>
-    esNuevo ? USUARIO_VACIO : (buscarUsuarioPorRun(decodeURIComponent(run!)) ?? USUARIO_VACIO),
-  );
+  const [usuario, setUsuario] = useState<Usuario>(USUARIO_VACIO);
+  const [cargando, setCargando] = useState(!esNuevo);
+  const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (esNuevo) return;
+
+    if (idNumerico === null || !Number.isInteger(idNumerico) || !token) {
+      setError('No se pudo identificar al usuario o la sesión expiró.');
+      setCargando(false);
+      return;
+    }
+
+    let vigente = true;
+
+    obtenerUsuarioApi(idNumerico, token)
+      .then((usuarioApi) => {
+        if (vigente) setUsuario({ ...usuarioApi, clave: '' });
+      })
+      .catch((e) => {
+        if (vigente) setError(mensajeError(e, 'No fue posible cargar el usuario.'));
+      })
+      .finally(() => {
+        if (vigente) setCargando(false);
+      });
+
+    return () => {
+      vigente = false;
+    };
+  }, [esNuevo, idNumerico, token]);
 
   function actualizar<K extends keyof Usuario>(campo: K, valor: Usuario[K]) {
     setUsuario((u) => ({ ...u, [campo]: valor }));
   }
 
-  function manejarEnvio(e: FormEvent) {
-    e.preventDefault();
-    const nuevosErrores: Record<string, string> = {};
-    if (!validarRUN(usuario.run)) nuevosErrores.run = 'RUN inválido.';
-    if (!usuario.nombre.trim()) nuevosErrores.nombre = 'El nombre es obligatorio.';
-    if (!esEmailValido(usuario.mail)) nuevosErrores.mail = 'Correo inválido.';
-    setErrores(nuevosErrores);
-    if (Object.keys(nuevosErrores).length > 0) return;
+  async function manejarEnvio(e: FormEvent) {
+  e.preventDefault();
 
-    const usuarioFormateado = { ...usuario, run: formatearRUN(usuario.run) };
+  if (!token) {
+    setError('Tu sesión expiró. Sal e inicia sesión nuevamente.');
+    return;
+  }
 
-    setError('');
-    try {
-      if (esNuevo) crearUsuario(usuarioFormateado);
-      else actualizarUsuario(decodeURIComponent(run!), usuarioFormateado);
-      setGuardado(true);
-      setTimeout(() => navigate('/admin/usuarios'), 900);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No fue posible guardar el usuario.');
+  const nuevosErrores: Record<string, string> = {};
+
+  if (esNuevo && !validarRUN(usuario.run)) nuevosErrores.run = 'RUN inválido.';
+  if (!usuario.nombre.trim()) nuevosErrores.nombre = 'El nombre es obligatorio.';
+  if (!usuario.apellidos.trim()) nuevosErrores.apellidos = 'Los apellidos son obligatorios.';
+  if (!esEmailValido(usuario.mail)) nuevosErrores.mail = 'Correo inválido.';
+
+  if (esNuevo && usuario.clave.length < 6) {
+    nuevosErrores.clave = 'La contraseña debe tener al menos 6 caracteres.';
+  } else if (!esNuevo && usuario.clave !== '' && usuario.clave.length < 6) {
+    nuevosErrores.clave = 'La nueva contraseña debe tener al menos 6 caracteres.';
+  }
+
+  setErrores(nuevosErrores);
+  if (Object.keys(nuevosErrores).length > 0) return;
+
+  setError('');
+  setGuardando(true);
+
+  try {
+    if (esNuevo) {
+      await crearUsuarioApi(
+        {
+          run: formatearRUN(usuario.run),
+          nombre: usuario.nombre,
+          apellidos: usuario.apellidos,
+          mail: usuario.mail,
+          clave: usuario.clave,
+          tipoUsuario: usuario.tipoUsuario,
+          region: usuario.region,
+          comuna: usuario.comuna,
+          direccion: usuario.direccion,
+          activo: usuario.activo,
+        },
+        token,
+      );
+    } else {
+      await actualizarUsuarioApi(
+        idNumerico!,
+        {
+          nombre: usuario.nombre,
+          apellidos: usuario.apellidos,
+          mail: usuario.mail,
+          clave: usuario.clave || undefined,
+          tipoUsuario: usuario.tipoUsuario,
+          region: usuario.region,
+          comuna: usuario.comuna,
+          direccion: usuario.direccion,
+          activo: usuario.activo,
+        },
+        token,
+      );
     }
+
+    setGuardado(true);
+    setTimeout(() => navigate('/admin/usuarios'), 900);
+  } catch (e) {
+    setError(mensajeError(e, 'No fue posible guardar el usuario.'));
+  } finally {
+    setGuardando(false);
+  }
+}
+  if (cargando) {
+    return (
+      <div className="container py-5">
+        <p className="text-muted">Cargando usuario...</p>
+      </div>
+    );
+  }
+
+  if (!esNuevo && usuario.run === '') {
+    return (
+      <div className="container py-5">
+        <div className="alert alert-danger" role="alert">{error}</div>
+        <Link to="/admin/usuarios">Volver a usuarios</Link>
+      </div>
+    );
   }
 
   return (
@@ -126,6 +221,16 @@ export default function AdminUsuarioForm() {
           value={usuario.mail}
           onChange={(e) => actualizar('mail', e.target.value)}
           error={errores.mail}
+        />
+
+        <CampoFormulario
+          etiqueta={esNuevo ? 'Contraseña' : 'Nueva contraseña (opcional)'}
+          id="clave"
+          type="password"
+          autoComplete="new-password"
+          value={usuario.clave}
+          onChange={(e) => actualizar('clave', e.target.value)}
+            error={errores.clave}
         />
 
         <SelectorRegionComuna
