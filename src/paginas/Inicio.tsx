@@ -1,12 +1,19 @@
 import { Link } from 'react-router-dom';
-import { PRODUCTOS } from '../datos/productos';
+import { useEffect, useState } from 'react';
+import type { Producto } from '../datos/productos';
+import { listarProductosApi } from '../servicios/ferreteriaApi';
 import { CONTENIDOS } from '../datos/contenidos';
 import CardProducto from '../componentes/moleculas/CardProducto';
 import { useCarritoContexto } from '../hooks/CarritoContexto';
 
 export default function Inicio() {
   const { agregar } = useCarritoContexto();
-  const destacados = PRODUCTOS.slice(0, 4);
+  const [destacados, setDestacados] = useState<Producto[]>([]);
+    useEffect(() => {
+      listarProductosApi()
+        .then((lista) => setDestacados(lista.slice(0, 4)))
+        .catch(() => setDestacados([]));
+    }, []);
   const recientes = CONTENIDOS.slice(0, 2);
 
   return (
