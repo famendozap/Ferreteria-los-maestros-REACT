@@ -6,7 +6,7 @@ import SelectorRegionComuna from '../componentes/moleculas/SelectorRegionComuna'
 import { useCarritoContexto } from '../hooks/CarritoContexto';
 import { useSesion } from '../hooks/SesionContexto';
 import { esEmailValido, formatearCLP } from '../utils/validaciones';
-import { actualizarItemCarritoApi, crearCarritoApi, crearPedidoApi, type PedidoCreado } from '../servicios/ferreteriaApi';
+import { actualizarItemCarritoApi, crearCarritoApi, crearPedidoApi, obtenerNotificacionVentaApi, type NotificacionVenta, type PedidoCreado } from '../servicios/ferreteriaApi';
 
 type MetodoPago = 'transferencia' | 'efectivo' | 'tarjeta';
 type TipoEntrega = 'despacho' | 'retiro';
@@ -40,6 +40,7 @@ export default function Checkout() {
   const [confirmada, setConfirmada] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [pedido, setPedido] = useState<PedidoCreado | null>(null);
+  const [notificacion, setNotificacion] = useState<NotificacionVenta | null>(null);
 
   function actualizar<K extends keyof typeof datos>(campo: K, valor: (typeof datos)[K]) {
     setDatos((actuales) => ({ ...actuales, [campo]: valor }));
@@ -124,6 +125,11 @@ export default function Checkout() {
       }
       const pedidoCreado = await crearPedidoApi(carrito.id, datos.nombre, datos.correo);
       setPedido(pedidoCreado);
+      try {
+        setNotificacion(await obtenerNotificacionVentaApi(pedidoCreado.id));
+      } catch {
+        setNotificacion(null);
+      }
       setTarjeta({ titular: '', numero: '', vencimiento: '', cvv: '' });
       setConfirmada(true);
     } catch (e) {
@@ -183,6 +189,14 @@ export default function Checkout() {
                 ? 'Tarjeta de prueba aprobada. No se realizó ningún cobro y el pedido no se envió a la tienda.'
                 : 'Esta demostración no procesa pagos. El pedido no se envía hasta que prepares y envíes el correo.'}
             </p>
+          </div>
+          <div className={`alert ${notificacion ? 'alert-info' : 'alert-warning'}`} role="status">
+            <strong>Notificación de la venta:</strong>{' '}
+            {notificacion
+              ? `${notificacion.mensaje} Estado: ${notificacion.estado}.`
+              : pedido?.estadoNotificacion === 'PENDIENTE'
+                ? 'La venta fue registrada, pero la notificación quedó pendiente porque el servicio no respondió.'
+                : 'La venta fue registrada. No se pudo consultar el detalle de la notificación.'}
           </div>
           <h2 className="h5">Resumen del pedido</h2>
           <p className="mb-1">

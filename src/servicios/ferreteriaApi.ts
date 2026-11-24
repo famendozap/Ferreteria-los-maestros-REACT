@@ -52,11 +52,24 @@ export interface PedidoCreado {
   estadoNotificacion: string | null;
 }
 
+export interface NotificacionVenta {
+  id: number;
+  pedidoId: number;
+  destinatario: string;
+  mensaje: string;
+  estado: string;
+  creadoEn: string;
+}
+
 export function crearPedidoApi(carritoId: string, nombreCliente: string, correoCliente: string) {
   return pedir<PedidoCreado>('/api/pedidos', {
     method: 'POST',
     body: JSON.stringify({ carritoId, nombreCliente, correoCliente }),
   });
+}
+
+export function obtenerNotificacionVentaApi(pedidoId: number) {
+  return pedir<NotificacionVenta>(`/api/notificaciones/pedido/${pedidoId}`);
 }
 
 export function crearContactoApi(nombre: string, correo: string, comentario: string) {
