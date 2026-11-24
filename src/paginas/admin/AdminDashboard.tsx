@@ -43,10 +43,10 @@ export default function AdminDashboard() {
 
   const tarjetas = [
     { titulo: 'Productos en catálogo', valor: mostrar(productos?.length), enlace: '/admin/productos' },
-    {
+        {
       titulo: 'Con stock bajo o agotado',
       valor: mostrar(productos?.filter((p) => stockEstado(p) !== 'ok').length),
-      enlace: '/admin/productos',
+      enlace: '/admin/productos?filtro=stock-bajo',
     },
     { titulo: 'Usuarios registrados', valor: mostrar(usuarios?.length), enlace: '/admin/usuarios' },
     {

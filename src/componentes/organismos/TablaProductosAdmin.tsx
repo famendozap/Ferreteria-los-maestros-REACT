@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { Producto } from '../../datos/productos';
 import { eliminarProductoApi, listarProductosApi, mensajeErrorApi } from '../../servicios/ferreteriaApi';
 import { useSesion } from '../../hooks/SesionContexto';
 import { formatearCLP } from '../../utils/validaciones';
-import StockPill from '../atomos/StockPill';
+import StockPill, { stockEstado } from '../atomos/StockPill';
 import Boton from '../atomos/Boton';
 
 export default function TablaProductosAdmin() {
   const { token } = useSesion();
+  const [params, setParams] = useSearchParams();
+  const soloStockBajo = params.get('filtro') === 'stock-bajo';
   const [busqueda, setBusqueda] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -33,14 +35,16 @@ export default function TablaProductosAdmin() {
 
   const filtrados = useMemo(() => {
     const consulta = busqueda.trim().toLocaleLowerCase();
-    if (!consulta) return productos;
-    return productos.filter(
-      (p) =>
+    return productos.filter((p) => {
+      if (soloStockBajo && stockEstado(p) === 'ok') return false;
+      if (!consulta) return true;
+      return (
         p.nombre.toLocaleLowerCase().includes(consulta) ||
         p.codigo.toLocaleLowerCase().includes(consulta) ||
-        p.marca.toLocaleLowerCase().includes(consulta),
-    );
-  }, [busqueda, productos]);
+        p.marca.toLocaleLowerCase().includes(consulta)
+      );
+    });
+  }, [busqueda, productos, soloStockBajo]);
 
   async function borrarProducto(codigo: string) {
     if (!token) return;
@@ -65,6 +69,15 @@ export default function TablaProductosAdmin() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
+        <select
+          className="form-select w-auto"
+          aria-label="Filtrar por estado de stock"
+          value={soloStockBajo ? 'stock-bajo' : 'todos'}
+          onChange={(e) => setParams(e.target.value === 'stock-bajo' ? { filtro: 'stock-bajo' } : {})}
+        >
+          <option value="todos">Todos los productos</option>
+          <option value="stock-bajo">Stock bajo o agotado</option>
+        </select>
         <Link to="/admin/productos/nuevo" className="text-nowrap">
           <Boton>+ Nuevo producto</Boton>
         </Link>
@@ -116,7 +129,11 @@ export default function TablaProductosAdmin() {
             {filtrados.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-4 text-center text-muted">
-                  {cargando ? 'Cargando productos...' : 'No se encontraron productos.'}
+                  {cargando
+                    ? 'Cargando productos...'
+                    : soloStockBajo
+                      ? 'No hay productos con stock bajo o agotado.'
+                      : 'No se encontraron productos.'}
                 </td>
               </tr>
             )}
