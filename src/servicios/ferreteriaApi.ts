@@ -58,3 +58,10 @@ export function crearPedidoApi(carritoId: string, nombreCliente: string, correoC
     body: JSON.stringify({ carritoId, nombreCliente, correoCliente }),
   });
 }
+
+export function crearContactoApi(nombre: string, correo: string, comentario: string) {
+  return pedir('/api/contactos', {
+    method: 'POST',
+    body: JSON.stringify({ nombre, correo, comentario }),
+  });
+}

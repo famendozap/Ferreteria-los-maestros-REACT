@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import CampoFormulario from '../moleculas/CampoFormulario';
 import Boton from '../atomos/Boton';
 import { validarContacto } from '../../utils/validaciones';
+import { crearContactoApi } from '../../servicios/ferreteriaApi';
 
 const MAX_CARACTERES = 500;
 
@@ -9,22 +10,35 @@ export default function FormularioContacto() {
   const [datos, setDatos] = useState({ nombre: '', mail: '', mensaje: '' });
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviado, setEnviado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [errorGeneral, setErrorGeneral] = useState('');
 
-  // Valida el formulario y muestra confirmación local; todavía no envía datos a un servidor.
-  function manejarEnvio(e: FormEvent) {
+  async function manejarEnvio(e: FormEvent) {
     e.preventDefault();
     const resultado = validarContacto(datos);
     setErrores(resultado.errores);
     if (!resultado.valido) return;
-    setEnviado(true);
-    setDatos({ nombre: '', mail: '', mensaje: '' });
+
+    setEnviando(true);
+    setErrorGeneral('');
+    try {
+      await crearContactoApi(datos.nombre, datos.mail, datos.mensaje);
+      setEnviado(true);
+      setDatos({ nombre: '', mail: '', mensaje: '' });
+    } catch (error) {
+      setErrorGeneral(error instanceof Error ? error.message : 'No fue posible enviar el mensaje.');
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
     <form noValidate onSubmit={manejarEnvio} className="mx-auto" style={{ maxWidth: '560px' }}>
+      {errorGeneral && <div className="alert alert-danger py-2">{errorGeneral}</div>}
+
       {enviado && (
         <div className="alert alert-success py-2">
-          ¡Gracias por escribirnos! Te responderemos a la brevedad.
+          ¡Gracias por escribirnos! Tu mensaje fue guardado y te responderemos a la brevedad.
         </div>
       )}
 
@@ -46,7 +60,7 @@ export default function FormularioContacto() {
 
       <div className="mb-3">
         <label htmlFor="mensaje" className="form-label">
-          Mensaje
+          Comentario
         </label>
         <textarea
           id="mensaje"
@@ -65,7 +79,7 @@ export default function FormularioContacto() {
       </div>
 
       <Boton type="submit" className="w-100">
-        Enviar mensaje
+        {enviando ? 'Enviando mensaje...' : 'Enviar mensaje'}
       </Boton>
     </form>
   );
