@@ -449,9 +449,9 @@ export default function Checkout() {
 }
 
 const opcionesPago: { valor: MetodoPago; etiqueta: string; ayuda: string }[] = [
-  { valor: 'transferencia', etiqueta: 'Transferencia bancaria', ayuda: 'se coordina con la tienda' },
-  { valor: 'efectivo', etiqueta: 'Efectivo', ayuda: 'al recibir o retirar el pedido' },
-  { valor: 'tarjeta', etiqueta: 'Tarjeta', ayuda: 'al retirar en tienda' },
+  { valor: 'transferencia', etiqueta: 'Transferencia bancaria', ayuda: 'Se coordina con la tienda' },
+  { valor: 'efectivo', etiqueta: 'Efectivo', ayuda: 'Al recibir o retirar el pedido' },
+  { valor: 'tarjeta', etiqueta: 'Tarjeta', ayuda: 'Al retirar en tienda' },
 ];
 
 const etiquetasMetodoPago: Record<MetodoPago, string> = {

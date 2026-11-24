@@ -65,10 +65,7 @@ export default function FormularioLogin() {
       />
 
       <Boton type="submit" className="w-100 mt-2" disabled={enviando}>{enviando ? 'Ingresando...' : 'Ingresar'}</Boton>
-
-      <p className="text-center small text-muted mt-3 mb-0">
-        Cuenta de prueba: admin@ferreterialosmaestros.cl / admin123
-      </p>
+      
     </form>
   );
 }
