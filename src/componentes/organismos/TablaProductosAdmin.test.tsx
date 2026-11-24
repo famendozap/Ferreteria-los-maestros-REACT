@@ -1,8 +1,19 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { crearProducto, eliminarProducto, buscarPorCodigo, type Producto } from '../../datos/productos';
+import type { Producto } from '../../datos/productos';
+import { eliminarProductoApi, listarProductosApi } from '../../servicios/ferreteriaApi';
 import TablaProductosAdmin from './TablaProductosAdmin';
+
+vi.mock('../../servicios/ferreteriaApi', () => ({
+  listarProductosApi: vi.fn(),
+  eliminarProductoApi: vi.fn(),
+  mensajeErrorApi: (_e: unknown, porDefecto: string) => porDefecto,
+}));
+
+vi.mock('../../hooks/SesionContexto', () => ({
+  useSesion: () => ({ usuario: null, token: 'token-prueba', iniciarSesion: vi.fn(), cerrarSesion: vi.fn() }),
+}));
 
 const CODIGO_PRUEBA = 'TEST-TABLA-PRODUCTOS';
 
@@ -19,6 +30,13 @@ const productoPrueba: Producto = {
   stockMin: 2,
 };
 
+const otroProducto: Producto = {
+  ...productoPrueba,
+  codigo: 'TEST-OTRO',
+  nombre: 'Cemento de otra marca',
+  stock: 0,
+};
+
 function renderTabla() {
   return render(
     <MemoryRouter>
@@ -27,31 +45,38 @@ function renderTabla() {
   );
 }
 
-afterEach(() => {
+beforeEach(() => {
   vi.restoreAllMocks();
-  if (buscarPorCodigo(CODIGO_PRUEBA)) eliminarProducto(CODIGO_PRUEBA);
+  vi.mocked(listarProductosApi).mockResolvedValue([productoPrueba, otroProducto]);
+  vi.mocked(eliminarProductoApi).mockResolvedValue(undefined);
 });
 
 describe('<TablaProductosAdmin />', () => {
-  it('filtra las filas por nombre y código', () => {
-    crearProducto(productoPrueba);
+  it('carga los productos desde la API y los filtra por nombre y código', async () => {
     renderTabla();
 
+    expect(await screen.findByText('Producto para filtrar')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: CODIGO_PRUEBA } });
 
     expect(screen.getByText('Producto para filtrar')).toBeInTheDocument();
-    expect(screen.queryByText('Cemento Polpaico gris 25 kg')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cemento de otra marca')).not.toBeInTheDocument();
   });
 
-  it('elimina la fila luego de confirmar la acción', () => {
-    crearProducto(productoPrueba);
+  it('muestra «Sin stock» para un producto con stock 0', async () => {
+    renderTabla();
+
+    await screen.findByText('Cemento de otra marca');
+    expect(screen.getByText('Sin stock')).toBeInTheDocument();
+  });
+
+  it('elimina la fila en la API luego de confirmar la acción', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderTabla();
 
-    fireEvent.click(screen.getByRole('button', { name: `Eliminar producto ${CODIGO_PRUEBA}` }));
+    fireEvent.click(await screen.findByRole('button', { name: `Eliminar producto ${CODIGO_PRUEBA}` }));
 
     expect(window.confirm).toHaveBeenCalledOnce();
-    expect(screen.queryByText('Producto para filtrar')).not.toBeInTheDocument();
-    expect(buscarPorCodigo(CODIGO_PRUEBA)).toBeUndefined();
+    await waitFor(() => expect(screen.queryByText('Producto para filtrar')).not.toBeInTheDocument());
+    expect(eliminarProductoApi).toHaveBeenCalledWith(CODIGO_PRUEBA, 'token-prueba');
   });
 });

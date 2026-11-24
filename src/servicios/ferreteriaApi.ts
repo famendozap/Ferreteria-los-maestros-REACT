@@ -78,3 +78,56 @@ export function crearContactoApi(nombre: string, correo: string, comentario: str
     body: JSON.stringify({ nombre, correo, comentario }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Operaciones de administrador sobre productos (requieren el token JWT del admin).
+// Son las que faltaban: el panel guardaba los cambios solo en memoria del navegador.
+// ---------------------------------------------------------------------------
+type ProductoApi = Producto & { pventa?: number; pcompra?: number };
+
+function cabeceraAdmin(token: string): HeadersInit {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function crearProductoApi(producto: Producto, token: string) {
+  const creado = await pedir<ProductoApi>('/api/productos', {
+    method: 'POST',
+    headers: cabeceraAdmin(token),
+    body: JSON.stringify(producto),
+  });
+  return normalizarProducto(creado);
+}
+
+export async function actualizarProductoApi(codigo: string, producto: Producto, token: string) {
+  const actualizado = await pedir<ProductoApi>(`/api/productos/${encodeURIComponent(codigo)}`, {
+    method: 'PUT',
+    headers: cabeceraAdmin(token),
+    body: JSON.stringify(producto),
+  });
+  return normalizarProducto(actualizado);
+}
+
+export async function actualizarStockApi(codigo: string, stock: number, token: string) {
+  const actualizado = await pedir<ProductoApi>(`/api/productos/${encodeURIComponent(codigo)}/stock`, {
+    method: 'PATCH',
+    headers: cabeceraAdmin(token),
+    body: JSON.stringify({ stock }),
+  });
+  return normalizarProducto(actualizado);
+}
+
+export function eliminarProductoApi(codigo: string, token: string) {
+  return pedir<void>(`/api/productos/${encodeURIComponent(codigo)}`, {
+    method: 'DELETE',
+    headers: cabeceraAdmin(token),
+  });
+}
+
+export function mensajeErrorApi(e: unknown, porDefecto: string): string {
+  if (e instanceof ErrorApi) {
+    if (e.status === 401) return 'Tu sesión expiró o el token no es válido. Usa "Salir" e inicia sesión nuevamente.';
+    if (e.status === 403) return 'No tienes permisos para realizar esta acción.';
+    return e.message;
+  }
+  return porDefecto;
+}

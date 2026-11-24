@@ -1,28 +1,56 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { eliminarProducto, filtrarProductos, listarProductos, type Producto } from '../../datos/productos';
+import type { Producto } from '../../datos/productos';
+import { eliminarProductoApi, listarProductosApi, mensajeErrorApi } from '../../servicios/ferreteriaApi';
+import { useSesion } from '../../hooks/SesionContexto';
 import { formatearCLP } from '../../utils/validaciones';
 import StockPill from '../atomos/StockPill';
 import Boton from '../atomos/Boton';
 
 export default function TablaProductosAdmin() {
+  const { token } = useSesion();
   const [busqueda, setBusqueda] = useState('');
-  const [productos, setProductos] = useState<Producto[]>(listarProductos);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
-  const filtrados = useMemo(
-    () => filtrarProductos(busqueda).filter((producto) => productos.some((actual) => actual.codigo === producto.codigo)),
-    [busqueda, productos],
-  );
+  useEffect(() => {
+    let vigente = true;
+    listarProductosApi()
+      .then((lista) => {
+        if (vigente) setProductos(lista);
+      })
+      .catch((e) => {
+        if (vigente) setError(mensajeErrorApi(e, 'No fue posible cargar los productos.'));
+      })
+      .finally(() => {
+        if (vigente) setCargando(false);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, []);
 
-  function borrarProducto(codigo: string) {
+  const filtrados = useMemo(() => {
+    const consulta = busqueda.trim().toLocaleLowerCase();
+    if (!consulta) return productos;
+    return productos.filter(
+      (p) =>
+        p.nombre.toLocaleLowerCase().includes(consulta) ||
+        p.codigo.toLocaleLowerCase().includes(consulta) ||
+        p.marca.toLocaleLowerCase().includes(consulta),
+    );
+  }, [busqueda, productos]);
+
+  async function borrarProducto(codigo: string) {
+    if (!token) return;
     if (!window.confirm(`¿Eliminar el producto ${codigo}?`)) return;
     try {
-      eliminarProducto(codigo);
-      setProductos(listarProductos());
+      await eliminarProductoApi(codigo, token);
+      setProductos((prev) => prev.filter((p) => p.codigo !== codigo));
       setError('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No fue posible eliminar el producto.');
+      setError(mensajeErrorApi(e, 'No fue posible eliminar el producto.'));
     }
   }
 
@@ -88,7 +116,7 @@ export default function TablaProductosAdmin() {
             {filtrados.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-4 text-center text-muted">
-                  No se encontraron productos.
+                  {cargando ? 'Cargando productos...' : 'No se encontraron productos.'}
                 </td>
               </tr>
             )}
